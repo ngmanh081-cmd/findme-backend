@@ -841,6 +841,92 @@ app.post('/api/reset-password', async (req, res) => {
         res.status(500).json({ detail: "Lỗi hệ thống khi đặt lại mật khẩu" });
     }
 });
+
+// ==========================================
+// FEATURE: REPORT USER
+// ==========================================
+// User creates report
+app.post('/api/reports', authenticateToken, async (req, res) => {
+    try {
+        const ReporterID = req.user.UserID;
+        const { ReportedUserID, Reason, Description } = req.body;
+
+        if (ReporterID === ReportedUserID) {
+            return res.status(400).json({ detail: "Cannot report yourself" });
+        }
+
+        const pool = await poolPromise;
+        await pool.request()
+            .input('ReporterID', sql.Int, ReporterID)
+            .input('ReportedUserID', sql.Int, ReportedUserID)
+            .input('Reason', sql.NVarChar, Reason)
+            .input('Description', sql.NVarChar, Description || '')
+            .query(`
+                INSERT INTO Reports (ReporterID, ReportedUserID, Reason, Description, Status)
+                VALUES (@ReporterID, @ReportedUserID, @Reason, @Description, 'PENDING')
+            `);
+
+        res.status(201).json({ message: "Report submitted" });
+    } catch (err) {
+        console.error('Report create error:', err);
+        res.status(500).json({ detail: "System error when creating report" });
+    }
+});
+
+// Admin lists pending reports
+app.get('/api/admin/reports', authenticateToken, isAdmin, async (req, res) => {
+    try {
+        const pool = await poolPromise;
+        const result = await pool.request()
+            .query(`
+                SELECT r.*, 
+                       u1.Username AS ReporterName, 
+                       u2.Username AS ReportedName,
+                       p2.Avatar AS ReportedAvatar
+                FROM Reports r
+                JOIN Users u1 ON r.ReporterID = u1.UserID
+                JOIN Users u2 ON r.ReportedUserID = u2.UserID
+                LEFT JOIN Profiles p2 ON u2.UserID = p2.UserID
+                WHERE r.Status = 'PENDING'
+                ORDER BY r.CreatedAt DESC
+            `);
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Report list error:', err);
+        res.status(500).json({ detail: "System error when loading reports" });
+    }
+});
+
+// Admin processes report (BAN or DISMISS)
+app.post('/api/admin/reports/:id/process', authenticateToken, isAdmin, async (req, res) => {
+    try {
+        const reportId = req.params.id;
+        const { Action, ReportedUserID } = req.body;
+        const pool = await poolPromise;
+
+        const newStatus = Action === 'BAN' ? 'RESOLVED' : 'DISMISSED';
+
+        await pool.request()
+            .input('ReportID', sql.Int, reportId)
+            .input('Status', sql.NVarChar, newStatus)
+            .query("UPDATE Reports SET Status = @Status WHERE ReportID = @ReportID");
+
+        if (Action === 'BAN' && ReportedUserID) {
+            await pool.request()
+                .input('UserID', sql.Int, ReportedUserID)
+                .query(`
+                    UPDATE Profiles SET IsActive = 0 WHERE UserID = @UserID;
+                    UPDATE Users SET Role = 'Banned' WHERE UserID = @UserID;
+                `);
+        }
+
+        res.json({ message: Action === 'BAN' ? "User banned" : "Report dismissed" });
+    } catch (err) {
+        console.error('Report process error:', err);
+        res.status(500).json({ detail: "System error when processing report" });
+    }
+});
+
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server Node.js đang chạy tại: http://127.0.0.1:${PORT}`);
