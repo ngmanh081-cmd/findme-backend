@@ -99,3 +99,18 @@ CREATE TABLE Messages (
     CONSTRAINT FK_Messages_Receiver FOREIGN KEY (ReceiverID) REFERENCES Users(UserID)
 );
 GO
+\r\n-- 8. Bang Reviews (Danh gia)\r\nCREATE TABLE Reviews (\r\n    ReviewID INT IDENTITY(1,1) PRIMARY KEY,\r\n    BookingID INT NULL,\r\n    ReviewerID INT NOT NULL,\r\n    RevieweeID INT NOT NULL,\r\n    Rating INT NOT NULL,\r\n    Comment NVARCHAR(500),\r\n    CreatedAt DATETIME DEFAULT GETDATE(),\r\n    CONSTRAINT FK_Reviews_Reviewer FOREIGN KEY (ReviewerID) REFERENCES Users(UserID),\r\n    CONSTRAINT FK_Reviews_Reviewee FOREIGN KEY (RevieweeID) REFERENCES Users(UserID)\r\n);\r\nGO\r\n\r\n-- 9. Bang Reports (Bao cao vi pham)
+CREATE TABLE Reports (
+    ReportID INT IDENTITY(1,1) PRIMARY KEY,
+    ReporterID INT NOT NULL,
+    ReportedUserID INT NOT NULL,
+    Reason NVARCHAR(100) NOT NULL,
+    Description NVARCHAR(500),
+    Status NVARCHAR(50) DEFAULT 'PENDING',
+    CreatedAt DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_Reports_Reporter FOREIGN KEY (ReporterID) REFERENCES Users(UserID),
+    CONSTRAINT FK_Reports_Reported FOREIGN KEY (ReportedUserID) REFERENCES Users(UserID)
+);
+GO
+
+

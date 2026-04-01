@@ -841,6 +841,376 @@ app.post('/api/reset-password', async (req, res) => {
         res.status(500).json({ detail: "Lỗi hệ thống khi đặt lại mật khẩu" });
     }
 });
+
+// ==========================================
+// FEATURE: RATING USER (REVIEWS)
+// ==========================================
+// Get reviews for a profile
+app.get('/api/profiles/:userId/reviews', async (req, res) => {
+    try {
+        const targetUserId = req.params.userId;
+        const pool = await poolPromise;
+
+        const result = await pool.request()
+            .input('RevieweeID', sql.Int, targetUserId)
+            .query(`
+                SELECT r.*, u.Username AS ReviewerName, p.Avatar AS ReviewerAvatar
+                FROM Reviews r
+                JOIN Users u ON r.ReviewerID = u.UserID
+                LEFT JOIN Profiles p ON u.UserID = p.UserID
+                WHERE r.RevieweeID = @RevieweeID
+                ORDER BY r.CreatedAt DESC
+            `);
+
+        const avgRes = await pool.request()
+            .input('RevieweeID', sql.Int, targetUserId)
+            .query(`
+                SELECT AVG(CAST(Rating AS FLOAT)) as AverageRating, COUNT(*) as TotalReviews
+                FROM Reviews WHERE RevieweeID = @RevieweeID
+            `);
+
+        res.json({
+            summary: avgRes.recordset[0],
+            reviews: result.recordset
+        });
+    } catch (err) {
+        console.error('Review list error:', err);
+        res.status(500).json({ detail: "System error when loading reviews" });
+    }
+});
+
+// Create a review (only after COMPLETED rent)
+app.post('/api/reviews', authenticateToken, async (req, res) => {
+    try {
+        const ReviewerID = req.user.UserID;
+        const { RequestID, RevieweeID, Rating, Comment } = req.body;
+
+        if (Rating < 1 || Rating > 5) {
+            return res.status(400).json({ detail: "Rating must be between 1 and 5" });
+        }
+
+        const pool = await poolPromise;
+
+        const checkRent = await pool.request()
+            .input('User1', sql.Int, ReviewerID)
+            .input('User2', sql.Int, RevieweeID)
+            .query(`
+                SELECT TOP 1 * FROM RentRequests
+                WHERE ((SenderID = @User1 AND ReceiverID = @User2) OR (SenderID = @User2 AND ReceiverID = @User1))
+                  AND Status = 'COMPLETED'
+            `);
+
+        if (checkRent.recordset.length === 0) {
+            return res.status(403).json({ detail: "You can review only after a completed rent" });
+        }
+
+        await pool.request()
+            .input('BookingID', sql.Int, RequestID || checkRent.recordset[0].RequestID)
+            .input('ReviewerID', sql.Int, ReviewerID)
+            .input('RevieweeID', sql.Int, RevieweeID)
+            .input('Rating', sql.Int, Rating)
+            .input('Comment', sql.NVarChar, Comment || '')
+            .query(`
+                INSERT INTO Reviews (BookingID, ReviewerID, RevieweeID, Rating, Comment)
+                VALUES (@BookingID, @ReviewerID, @RevieweeID, @Rating, @Comment)
+            `);
+
+        res.status(201).json({ message: "Review submitted" });
+    } catch (err) {
+        console.error('Review create error:', err);
+        res.status(500).json({ detail: "System error when creating review" });
+    }
+});
+
+// ==========================================
+// FEATURE: REPORT USER
+// ==========================================
+// User creates report
+app.post('/api/reports', authenticateToken, async (req, res) => {
+    try {
+        const ReporterID = req.user.UserID;
+        const { ReportedUserID, Reason, Description } = req.body;
+
+        if (ReporterID === ReportedUserID) {
+            return res.status(400).json({ detail: "Cannot report yourself" });
+        }
+
+        const pool = await poolPromise;
+        await pool.request()
+            .input('ReporterID', sql.Int, ReporterID)
+            .input('ReportedUserID', sql.Int, ReportedUserID)
+            .input('Reason', sql.NVarChar, Reason)
+            .input('Description', sql.NVarChar, Description || '')
+            .query(`
+                INSERT INTO Reports (ReporterID, ReportedUserID, Reason, Description, Status)
+                VALUES (@ReporterID, @ReportedUserID, @Reason, @Description, 'PENDING')
+            `);
+
+        res.status(201).json({ message: "Report submitted" });
+    } catch (err) {
+        console.error('Report create error:', err);
+        res.status(500).json({ detail: "System error when creating report" });
+    }
+});
+
+// Admin lists pending reports
+app.get('/api/admin/reports', authenticateToken, isAdmin, async (req, res) => {
+    try {
+        const pool = await poolPromise;
+        const result = await pool.request()
+            .query(`
+                SELECT r.*, 
+                       u1.Username AS ReporterName, 
+                       u2.Username AS ReportedName,
+                       p2.Avatar AS ReportedAvatar
+                FROM Reports r
+                JOIN Users u1 ON r.ReporterID = u1.UserID
+                JOIN Users u2 ON r.ReportedUserID = u2.UserID
+                LEFT JOIN Profiles p2 ON u2.UserID = p2.UserID
+                WHERE r.Status = 'PENDING'
+                ORDER BY r.CreatedAt DESC
+            `);
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Report list error:', err);
+        res.status(500).json({ detail: "System error when loading reports" });
+    }
+});
+
+// Admin processes report (BAN or DISMISS)
+app.post('/api/admin/reports/:id/process', authenticateToken, isAdmin, async (req, res) => {
+    try {
+        const reportId = req.params.id;
+        const { Action, ReportedUserID } = req.body;
+        const pool = await poolPromise;
+
+        const newStatus = Action === 'BAN' ? 'RESOLVED' : 'DISMISSED';
+
+        await pool.request()
+            .input('ReportID', sql.Int, reportId)
+            .input('Status', sql.NVarChar, newStatus)
+            .query("UPDATE Reports SET Status = @Status WHERE ReportID = @ReportID");
+
+        if (Action === 'BAN' && ReportedUserID) {
+            await pool.request()
+                .input('UserID', sql.Int, ReportedUserID)
+                .query(`
+                    UPDATE Profiles SET IsActive = 0 WHERE UserID = @UserID;
+                    UPDATE Users SET Role = 'Banned' WHERE UserID = @UserID;
+                `);
+        }
+
+        res.json({ message: Action === 'BAN' ? "User banned" : "Report dismissed" });
+    } catch (err) {
+        console.error('Report process error:', err);
+        res.status(500).json({ detail: "System error when processing report" });
+    }
+});
+
+// ==========================================
+// FEATURE: CATEGORY + PROFILE SERVICES
+// ==========================================
+// Public categories (active only)
+app.get('/api/categories', async (req, res) => {
+    try {
+        const pool = await poolPromise;
+        const result = await pool.request()
+            .query("SELECT * FROM Categories WHERE IsActive = 1 ORDER BY CategoryID DESC");
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Category list error:', err);
+        res.status(500).json({ detail: "System error when loading categories" });
+    }
+});
+
+// Admin: list all categories
+app.get('/api/admin/categories', authenticateToken, isAdmin, async (req, res) => {
+    try {
+        const pool = await poolPromise;
+        const result = await pool.request().query("SELECT * FROM Categories ORDER BY CategoryID DESC");
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ detail: "System error when loading categories" });
+    }
+});
+
+// Admin: create category
+app.post('/api/admin/categories', authenticateToken, isAdmin, async (req, res) => {
+    try {
+        const { CategoryName, IconUrl } = req.body;
+        if (!CategoryName || CategoryName.trim() === '') {
+            return res.status(400).json({ detail: "CategoryName is required" });
+        }
+
+        const pool = await poolPromise;
+        await pool.request()
+            .input('CategoryName', sql.NVarChar, CategoryName.trim())
+            .input('IconUrl', sql.NVarChar, IconUrl || '')
+            .query(`
+                INSERT INTO Categories (CategoryName, IconUrl, IsActive)
+                VALUES (@CategoryName, @IconUrl, 1)
+            `);
+        res.status(201).json({ message: "Category created" });
+    } catch (err) {
+        console.error('Category create error:', err);
+        res.status(500).json({ detail: "System error when creating category" });
+    }
+});
+
+// Admin: update category
+app.put('/api/admin/categories/:id', authenticateToken, isAdmin, async (req, res) => {
+    try {
+        const catId = req.params.id;
+        const { CategoryName, IconUrl, IsActive } = req.body;
+
+        if (!CategoryName || CategoryName.trim() === '') {
+            return res.status(400).json({ detail: "CategoryName is required" });
+        }
+
+        const pool = await poolPromise;
+        await pool.request()
+            .input('CategoryID', sql.Int, catId)
+            .input('CategoryName', sql.NVarChar, CategoryName.trim())
+            .input('IconUrl', sql.NVarChar, IconUrl || '')
+            .input('IsActive', sql.Bit, IsActive === false ? 0 : 1)
+            .query(`
+                UPDATE Categories
+                SET CategoryName = @CategoryName, IconUrl = @IconUrl, IsActive = @IsActive
+                WHERE CategoryID = @CategoryID
+            `);
+        res.json({ message: "Category updated" });
+    } catch (err) {
+        console.error('Category update error:', err);
+        res.status(500).json({ detail: "System error when updating category" });
+    }
+});
+
+// Admin: delete category
+app.delete('/api/admin/categories/:id', authenticateToken, isAdmin, async (req, res) => {
+    try {
+        const catId = req.params.id;
+        const pool = await poolPromise;
+        await pool.request()
+            .input('CategoryID', sql.Int, catId)
+            .query("DELETE FROM Categories WHERE CategoryID = @CategoryID");
+        res.json({ message: "Category deleted" });
+    } catch (err) {
+        if (err.number === 547) {
+            return res.status(400).json({ detail: "Cannot delete because it is in use" });
+        }
+        console.error('Category delete error:', err);
+        res.status(500).json({ detail: "System error when deleting category" });
+    }
+});
+
+// User: list own profile services
+app.get('/api/profile/services', authenticateToken, async (req, res) => {
+    try {
+        const pool = await poolPromise;
+        const profileRes = await pool.request()
+            .input('UserID', sql.Int, req.user.UserID)
+            .query('SELECT ProfileID FROM Profiles WHERE UserID = @UserID');
+
+        if (profileRes.recordset.length === 0) return res.json([]);
+        const profileId = profileRes.recordset[0].ProfileID;
+
+        const result = await pool.request()
+            .input('ProfileID', sql.Int, profileId)
+            .query(`
+                SELECT ps.ProfileServiceID, ps.CustomPricePerHour, ps.Description, c.CategoryName, c.IconUrl
+                FROM ProfileServices ps
+                JOIN Categories c ON ps.CategoryID = c.CategoryID
+                WHERE ps.ProfileID = @ProfileID
+            `);
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Profile services list error:', err);
+        res.status(500).json({ detail: "System error when loading services" });
+    }
+});
+
+// User: add service to profile
+app.post('/api/profile/services', authenticateToken, async (req, res) => {
+    try {
+        const { CategoryID, CustomPricePerHour, Description } = req.body;
+        const pool = await poolPromise;
+
+        const profileRes = await pool.request()
+            .input('UserID', sql.Int, req.user.UserID)
+            .query('SELECT ProfileID FROM Profiles WHERE UserID = @UserID');
+
+        if (profileRes.recordset.length === 0) {
+            return res.status(404).json({ detail: "Profile not found" });
+        }
+        const profileId = profileRes.recordset[0].ProfileID;
+
+        const checkExist = await pool.request()
+            .input('ProfileID', sql.Int, profileId)
+            .input('CategoryID', sql.Int, CategoryID)
+            .query('SELECT * FROM ProfileServices WHERE ProfileID = @ProfileID AND CategoryID = @CategoryID');
+
+        if (checkExist.recordset.length > 0) {
+            return res.status(400).json({ detail: "Service already exists" });
+        }
+
+        await pool.request()
+            .input('ProfileID', sql.Int, profileId)
+            .input('CategoryID', sql.Int, CategoryID)
+            .input('CustomPricePerHour', sql.Decimal(18, 2), CustomPricePerHour)
+            .input('Description', sql.NVarChar, Description || '')
+            .query(`
+                INSERT INTO ProfileServices (ProfileID, CategoryID, CustomPricePerHour, Description)
+                VALUES (@ProfileID, @CategoryID, @CustomPricePerHour, @Description)
+            `);
+        res.status(201).json({ message: "Service added" });
+    } catch (err) {
+        console.error('Profile service create error:', err);
+        res.status(500).json({ detail: "System error when adding service" });
+    }
+});
+
+// User: delete service from profile
+app.delete('/api/profile/services/:serviceId', authenticateToken, async (req, res) => {
+    try {
+        const pool = await poolPromise;
+        await pool.request()
+            .input('ProfileServiceID', sql.Int, req.params.serviceId)
+            .query('DELETE FROM ProfileServices WHERE ProfileServiceID = @ProfileServiceID');
+        res.json({ message: "Service deleted" });
+    } catch (err) {
+        console.error('Profile service delete error:', err);
+        res.status(500).json({ detail: "System error when deleting service" });
+    }
+});
+
+// Public: list services of a user
+app.get('/api/profiles/:userId/services', async (req, res) => {
+    try {
+        const targetUserId = req.params.userId;
+        const pool = await poolPromise;
+
+        const profileRes = await pool.request()
+            .input('UserID', sql.Int, targetUserId)
+            .query('SELECT ProfileID FROM Profiles WHERE UserID = @UserID');
+
+        if (profileRes.recordset.length === 0) return res.json([]);
+        const profileId = profileRes.recordset[0].ProfileID;
+
+        const result = await pool.request()
+            .input('ProfileID', sql.Int, profileId)
+            .query(`
+                SELECT ps.CustomPricePerHour, ps.Description, c.CategoryName
+                FROM ProfileServices ps
+                JOIN Categories c ON ps.CategoryID = c.CategoryID
+                WHERE ps.ProfileID = @ProfileID AND c.IsActive = 1
+            `);
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Profile services public error:', err);
+        res.status(500).json({ detail: "System error when loading profile services" });
+    }
+});
+
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server Node.js đang chạy tại: http://127.0.0.1:${PORT}`);
