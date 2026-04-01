@@ -1,19 +1,24 @@
-const sql = require('mssql/msnodesqlv8');
+﻿const sql = require('mssql/msnodesqlv8');
+require('dotenv').config();
 
-// Sử dụng nguyên xi cấu hình đã hoạt động trơn tru bên Python!
-const connectionString = 'Driver={ODBC Driver 17 for SQL Server};Server=(localdb)\\MSSQLLocalDB;Database=RentApp;Trusted_Connection=yes;';
+// Use .env config to make DB target easy to change
+const dbServer = process.env.DB_SERVER || 'localhost';
+const dbInstance = process.env.DB_INSTANCE || '';
+const dbName = process.env.DB_NAME || 'FindMeDB';
 
-// Khởi tạo Pool kết nối bằng chuỗi cấu hình trực tiếp
+const serverWithInstance = dbInstance ? `${dbServer}\\${dbInstance}` : dbServer;
+const connectionString = `Driver={ODBC Driver 17 for SQL Server};Server=${serverWithInstance};Database=${dbName};Trusted_Connection=yes;`;
+
 const poolPromise = new sql.ConnectionPool({
     connectionString: connectionString
 })
     .connect()
     .then(pool => {
-        console.log('✅ Đã kết nối thành công với SQL Server LocalDB qua ODBC Driver 17!');
+        console.log('✅ Connected to SQL Server via ODBC Driver 17');
         return pool;
     })
     .catch(err => {
-        console.error('❌ Lỗi kết nối Database:', err);
+        console.error('❌ Database connection error:', err);
     });
 
 module.exports = { sql, poolPromise };
