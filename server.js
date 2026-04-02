@@ -843,6 +843,86 @@ app.post('/api/reset-password', async (req, res) => {
 });
 
 // ==========================================
+// FEATURE: RATING USER (REVIEWS)
+// ==========================================
+// Get reviews for a profile
+app.get('/api/profiles/:userId/reviews', async (req, res) => {
+    try {
+        const targetUserId = req.params.userId;
+        const pool = await poolPromise;
+
+        const result = await pool.request()
+            .input('RevieweeID', sql.Int, targetUserId)
+            .query(`
+                SELECT r.*, u.Username AS ReviewerName, p.Avatar AS ReviewerAvatar
+                FROM Reviews r
+                JOIN Users u ON r.ReviewerID = u.UserID
+                LEFT JOIN Profiles p ON u.UserID = p.UserID
+                WHERE r.RevieweeID = @RevieweeID
+                ORDER BY r.CreatedAt DESC
+            `);
+
+        const avgRes = await pool.request()
+            .input('RevieweeID', sql.Int, targetUserId)
+            .query(`
+                SELECT AVG(CAST(Rating AS FLOAT)) as AverageRating, COUNT(*) as TotalReviews
+                FROM Reviews WHERE RevieweeID = @RevieweeID
+            `);
+
+        res.json({
+            summary: avgRes.recordset[0],
+            reviews: result.recordset
+        });
+    } catch (err) {
+        console.error('Review list error:', err);
+        res.status(500).json({ detail: "System error when loading reviews" });
+    }
+});
+
+// Create a review (only after COMPLETED rent)
+app.post('/api/reviews', authenticateToken, async (req, res) => {
+    try {
+        const ReviewerID = req.user.UserID;
+        const { RequestID, RevieweeID, Rating, Comment } = req.body;
+
+        if (Rating < 1 || Rating > 5) {
+            return res.status(400).json({ detail: "Rating must be between 1 and 5" });
+        }
+
+        const pool = await poolPromise;
+
+        const checkRent = await pool.request()
+            .input('User1', sql.Int, ReviewerID)
+            .input('User2', sql.Int, RevieweeID)
+            .query(`
+                SELECT TOP 1 * FROM RentRequests
+                WHERE ((SenderID = @User1 AND ReceiverID = @User2) OR (SenderID = @User2 AND ReceiverID = @User1))
+                  AND Status = 'COMPLETED'
+            `);
+
+        if (checkRent.recordset.length === 0) {
+            return res.status(403).json({ detail: "You can review only after a completed rent" });
+        }
+
+        await pool.request()
+            .input('BookingID', sql.Int, RequestID || checkRent.recordset[0].RequestID)
+            .input('ReviewerID', sql.Int, ReviewerID)
+            .input('RevieweeID', sql.Int, RevieweeID)
+            .input('Rating', sql.Int, Rating)
+            .input('Comment', sql.NVarChar, Comment || '')
+            .query(`
+                INSERT INTO Reviews (BookingID, ReviewerID, RevieweeID, Rating, Comment)
+                VALUES (@BookingID, @ReviewerID, @RevieweeID, @Rating, @Comment)
+            `);
+
+        res.status(201).json({ message: "Review submitted" });
+    } catch (err) {
+        console.error('Review create error:', err);
+        res.status(500).json({ detail: "System error when creating review" });
+    }
+});
+
+// ==========================================
 // FEATURE: REPORT USER
 // ==========================================
 // User creates report
