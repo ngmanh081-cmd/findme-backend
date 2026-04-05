@@ -1,0 +1,1128 @@
+{
+  "info": {
+    "_postman_id": "6f2f2e7e-1bc0-40c0-bddb-1161b0fe9623",
+    "name": "FindMe",
+    "description": "## Lưu ý rất quan trọng khi test\n\n- Hãy gọi `GET /api/wallet` ít nhất 1 lần cho từng tài khoản `admin`, `user_a`, `user_b` ngay sau khi login để tạo dòng ví trong bảng `Wallets`.\n- Nếu bỏ qua bước trên, một số API như duyệt thuê hoặc chia tiền sau khi gặp có thể lỗi hoặc không cộng tiền đúng.\n- `POST /api/register` cho phép truyền `Role`, nên bạn có thể tạo luôn tài khoản admin để test local.\n- `GET /api/profiles` chỉ trả về profile có `IsActive = 1`.\n- Chat chỉ hoạt động khi 2 người đã có `RentRequests.Status` là `ACCEPTED` hoặc `COMPLETED`, trừ admin.\n- Review chỉ tạo được sau khi lịch thuê đã `COMPLETED`.\n- API báo cáo `BAN` sẽ khóa user bị báo cáo bằng cách đổi `Users.Role = 'Banned'` và `Profiles.IsActive = 0`, nên nên test ở cuối.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "45077428",
+    "_collection_link": "https://go.postman.co/collection/45077428-6f2f2e7e-1bc0-40c0-bddb-1161b0fe9623?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register admin",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Username\": \"admin_findme\",\r\n  \"Email\": \"{{admin_email}}\",\r\n  \"Password\": \"{{admin_password}}\",\r\n  \"Role\": \"Admin\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register user A",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Username\": \"user_a\",\r\n  \"Email\": \"{{user_a_email}}\",\r\n  \"Password\": \"{{user_a_password}}\",\r\n  \"Role\": \"User\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register user B",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Username\": \"user_b\",\r\n  \"Email\": \"{{user_b_email}}\",\r\n  \"Password\": \"{{user_b_password}}\",\r\n  \"Role\": \"User\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Email\": \"{{admin_email}}\",\r\n  \"Password\": \"{{admin_password}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User B",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "\r\n {\r\n  \"Email\": \"{{user_b_email}}\",\r\n  \"Password\": \"{{user_b_password}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login User A",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "\r\n {\r\n  \"Email\": \"{{user_a_email}}\",\r\n  \"Password\": \"1234567\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profiles",
+      "item": [
+        {
+          "name": "User tạo profile",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Bio\": \"Mình thích đi cà phê và xem phim.\",\r\n  \"PricePerHour\": 100000,\r\n  \"Gender\": \"Nam\",\r\n  \"ImageGallery\": [],\r\n  \"Avatar\": \"\",\r\n  \"Hobbies\": [\"Cafe\", \"Movie\"],\r\n  \"IsActive\": true\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Xem thông tin user",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Bio\": \"Có thể đi ăn, đi chơi, trò chuyện.\",\r\n  \"PricePerHour\": 120000,\r\n  \"Gender\": \"Nữ\",\r\n  \"ImageGallery\": [],\r\n  \"Avatar\": \"\",\r\n  \"Hobbies\": [\"Travel\", \"Music\"],\r\n  \"IsActive\": true\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/profiles/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Xem profile public",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "profiles"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Ví admin",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/wallet",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "wallet"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ví user B",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/wallet",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "wallet"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "UserA yêu cầu nạp tiền",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Type\": \"NAP_TIEN\",\r\n  \"Amount\": 500000,\r\n  \"PaymentMethod\": \"Ngân hàng\",\r\n  \"PaymentDetails\": \"VCB - 123456789\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/wallet/request",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "wallet",
+                "request"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ví userA",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/wallet",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "wallet"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rent Flow",
+      "item": [
+        {
+          "name": "UserA request rent userB",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"TargetUserID\": 6,\r\n  \"Hours\": 2\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/rent/request",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rent",
+                "request"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B xem request",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/rent/my-requests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rent",
+                "my-requests"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B accept yêu cầu",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/rent/accept/3",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rent",
+                "accept",
+                "3"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B xác nhận đã gặp",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/rent/confirm-meet/3",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rent",
+                "confirm-meet",
+                "3"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User A xác nhận đã gặp",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/rent/confirm-meet/3",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "rent",
+                "confirm-meet",
+                "3"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "item": [
+        {
+          "name": "Test chặn chat trước khi accept",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"ReceiverID\": 6,\r\n  \"Content\": \"Chào em, em an com chua?.\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "messages"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User A gửi tin nhắn cho user B",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"ReceiverID\": 6,\r\n  \"Content\": \"Chào bạn, tối nay mình gặp nhé.\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "messages"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B gửi lại tin nhắn",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"ReceiverID\": 5,\r\n  \"Content\": \"Ok bạn nhé.\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/messages",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "messages"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lấy lịch sử chat",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/messages/5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                "5"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lấy inbox",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/inbox",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "inbox"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "User A đánh giá user B",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"RequestID\": 3,\r\n  \"RevieweeID\": 6,\r\n  \"Rating\": 5,\r\n  \"Comment\": \"Rất vui vẻ và đúng giờ.\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reviews"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Xem danh sách review của userB",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/profiles/{{user_b_id}}/reviews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{user_b_id}}",
+                "reviews"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "UserA report UserB",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"ReportedUserID\": {{user_b_id}},\r\n  \"Reason\": \"Spam\",\r\n  \"Description\": \"Test report từ Postman\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reports",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reports"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin xem report đang chờ xử lý",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/reports",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reports"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "New Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Action\": \"DISMISS\",\r\n  \"ReportedUserID\": {{user_b_id}}\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/reports/1/process",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reports",
+                "1",
+                "process"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "admin lấy danh sách chờ",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/transactions/pending",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "transactions",
+                "pending"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin duyệt giao dịch",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Action\": \"APPROVE\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/transactions/3/process",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "transactions",
+                "3",
+                "process"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lịch sử giao dịch",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/transactions/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "transactions",
+                "history"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Tạo category",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"CategoryName\": \"Đi xem phim \",\r\n  \"IconUrl\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQt_rbthKo_8r_IJQIprxK_6qH_Qiz9hNjgxg&s\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Xem danh sách category",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update category",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"CategoryName\": \"Đi cà phê cuối tuần\",\r\n  \"IconUrl\": \"https://cdn2.tuoitre.vn/thumb_w/480/471584752817336320/2025/3/24/img0732-1-17403068560381429939711-17427769034831173878205.jpg\",\r\n  \"IsActive\": true\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/categories/2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "categories",
+                "2"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"CategoryName\": \"Đi cà phê cuối tuần\",\r\n  \"IconUrl\": \"https://cdn2.tuoitre.vn/thumb_w/480/471584752817336320/2025/3/24/img0732-1-17403068560381429939711-17427769034831173878205.jpg\",\r\n  \"IsActive\": true\r\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/categories/2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "categories",
+                "2"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profile Services",
+      "item": [
+        {
+          "name": "UserB thêm service vào profile",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"CategoryID\": 3,\r\n  \"CustomPricePerHour\": 150000,\r\n  \"Description\": \"Có thể đi nhà thờ và trò chuyện.\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/profile/services",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "profile",
+                "services"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B xem service của mình",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/profile/services",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "profile",
+                "services"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Profile UserB ở public",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/profiles/{{user_b_id}}/services",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "profiles",
+                "{{user_b_id}}",
+                "services"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "User B xóa service",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/profile/services/2",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "profile",
+                "services",
+                "2"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Password Reset",
+      "item": [
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "\r\n{\r\n  \"Email\": \"{{user_a_email}}\",\r\n  \"OTP\": \"548072\",\r\n  \"NewPassword\": \"1234567\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/reset-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "reset-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"Email\": \"{{user_a_email}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/forgot-password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "forgot-password"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{user_b_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "pm.request.headers.upsert({ key: 'Content-Type', value: 'application/json' });"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ]
+}
